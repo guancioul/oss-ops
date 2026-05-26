@@ -1,0 +1,19 @@
+# OSS Radar data (user-generated, not committed)
+issues.json
+config.yaml
+oss-radar
+
+# OS
+.DS_Store
+*.mov
+*.mp4
+
+# Secrets
+.env
+
+# Go build artifacts
+dashboard/oss-radar
+
+# Claude Code local
+.claude/settings.local.json
+.claude/memory/

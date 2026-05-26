@@ -1,0 +1,23 @@
+github_token: ${GITHUB_TOKEN}
+claude_api_key: ${CLAUDE_API_KEY}
+
+profile:
+  goal: "Become Strimzi Component Owner. Focus on reconciler, connector, and operator core areas."
+  skills: ["Java", "Go", "Kubernetes", "Kafka"]
+
+repos:
+  - owner: strimzi
+    repo: strimzi-kafka-operator
+    labels: [help-wanted, good-start]
+    priority: high
+    focus_areas: [reconciler, connector, operator, certificate]
+  - owner: strimzi
+    repo: strimzi-kafka-bridge
+    labels: [good-start]
+    priority: medium
+    focus_areas: [bridge, http, refactor]
+  - owner: open-telemetry
+    repo: otel-arrow
+    labels: [good first issue, help wanted]
+    priority: medium
+    focus_areas: [query-engine, otlp, scalar]
