@@ -15,9 +15,9 @@ Scans GitHub repos for open issues, scores them with a rule-based scorer, lets y
 | `dashboard/internal/scorer/scorer.go` | Rule-based scoring (0–100) |
 | `dashboard/internal/ai/evaluator.go` | Claude AI evaluation |
 | `dashboard/internal/github/client.go` | GitHub API client |
-| `dashboard/internal/data/issues.go` | issues.json read/write |
+| `dashboard/internal/data/issues.go` | issues.yaml read/write |
 | `dashboard/internal/model/issue.go` | Issue struct |
-| `issues.json` | Local tracker (gitignored) |
+| `issues.yaml` | Local tracker (gitignored) |
 
 ## Commands
 

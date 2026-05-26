@@ -5,42 +5,49 @@ import (
 	"os"
 	"path/filepath"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/guancioul/oss-radar/internal/model"
 )
 
 type Store struct {
-	Issues   []model.Issue `json:"issues"`
-	LastScan string        `json:"last_scan,omitempty"`
+	Issues   []model.Issue `yaml:"issues"`
+	LastScan string        `yaml:"last_scan,omitempty"`
 }
 
 func LoadIssues(dir string) []model.Issue {
-	path := filepath.Join(dir, "issues.json")
-	data, err := os.ReadFile(path)
+	path := filepath.Join(dir, "issues.yaml")
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		// fallback: migrate from issues.json if it exists
+		return migrateLegacyJSON(dir)
 	}
 	var store Store
-	if err := json.Unmarshal(data, &store); err != nil {
-		return nil
+	if err := yaml.Unmarshal(raw, &store); err != nil {
+		return []model.Issue{}
 	}
 	return store.Issues
 }
 
 func SaveIssues(dir string, issues []model.Issue) error {
 	store := Store{Issues: issues}
-	data, err := json.MarshalIndent(store, "", "  ")
+	data, err := yaml.Marshal(store)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "issues.json"), data, 0644)
+	return os.WriteFile(filepath.Join(dir, "issues.yaml"), data, 0644)
 }
 
 func NormalizeStatus(raw string) string {
 	switch raw {
 	case "in-progress", "in_progress":
 		return "in-progress"
-	case "candidate", "evaluating", "merged", "skip":
+	case "needs-evaluate", "needs_evaluate":
+		return "needs-evaluate"
+	case "candidate", "evaluated", "merged", "skip", "rejected":
 		return raw
+	case "evaluating": // legacy
+		return "evaluated"
 	default:
 		return "candidate"
 	}
@@ -50,16 +57,20 @@ func StatusPriority(status string) int {
 	switch NormalizeStatus(status) {
 	case "in-progress":
 		return 0
-	case "evaluating":
+	case "evaluated":
 		return 1
-	case "candidate":
+	case "needs-evaluate":
 		return 2
-	case "merged":
+	case "candidate":
 		return 3
-	case "skip":
+	case "merged":
 		return 4
-	default:
+	case "rejected":
 		return 5
+	case "skip":
+		return 6
+	default:
+		return 6
 	}
 }
 
@@ -88,6 +99,25 @@ func ComputeMetrics(issues []model.Issue) model.PipelineMetrics {
 		m.AvgScore = totalScore / float64(scored)
 	}
 	return m
+}
+
+// migrateLegacyJSON reads issues.json, saves as issues.yaml, and removes the old file.
+func migrateLegacyJSON(dir string) []model.Issue {
+	jsonPath := filepath.Join(dir, "issues.json")
+	raw, err := os.ReadFile(jsonPath)
+	if err != nil {
+		return []model.Issue{}
+	}
+	type jsonStore struct {
+		Issues []model.Issue `json:"issues"`
+	}
+	var s jsonStore
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return []model.Issue{}
+	}
+	_ = SaveIssues(dir, s.Issues)
+	_ = os.Remove(jsonPath)
+	return s.Issues
 }
 
 func UpdateIssueStatus(dir, issueURL, newStatus string) error {

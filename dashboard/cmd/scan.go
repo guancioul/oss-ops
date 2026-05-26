@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ import (
 type repoConfig struct {
 	Owner      string   `mapstructure:"owner"`
 	Repo       string   `mapstructure:"repo"`
+	Repos      []string `mapstructure:"repos"`
 	Labels     []string `mapstructure:"labels"`
 	Priority   string   `mapstructure:"priority"`
 	FocusAreas []string `mapstructure:"focus_areas"`
@@ -45,13 +47,35 @@ var scanCmd = &cobra.Command{
 		ctx := context.Background()
 
 		for _, repo := range repos {
-			fmt.Printf("Scanning %s/%s...\n", repo.Owner, repo.Repo)
-			issues, err := client.ListIssues(ctx, repo.Owner, repo.Repo, repo.Labels)
-			if err != nil {
-				fmt.Printf("  Error: %v\n", err)
-				continue
+			// Expand into a flat list of (owner, repoName) targets.
+			// Priority: repos[] > repo > org-level search.
+			targets := repo.Repos
+			if len(targets) == 0 && repo.Repo != "" {
+				targets = []string{repo.Repo}
 			}
-			for _, iss := range issues {
+
+			var allIssues []ghclient.Issue
+			if len(targets) == 0 {
+				fmt.Printf("Scanning org %s...\n", repo.Owner)
+				iss, err := client.SearchOrgIssues(ctx, repo.Owner, repo.Labels)
+				if err != nil {
+					fmt.Printf("  Error: %v\n", err)
+					continue
+				}
+				allIssues = iss
+			} else {
+				for _, repoName := range targets {
+					fmt.Printf("Scanning %s/%s...\n", repo.Owner, repoName)
+					iss, err := client.ListIssues(ctx, repo.Owner, repoName, repo.Labels)
+					if err != nil {
+						fmt.Printf("  Error: %v\n", err)
+						continue
+					}
+					allIssues = append(allIssues, iss...)
+				}
+			}
+
+			for _, iss := range allIssues {
 				if len(iss.Assignees) > 0 {
 					continue // skip assigned
 				}
@@ -65,7 +89,7 @@ var scanCmd = &cobra.Command{
 				score := scorer.Score(iss, repoCfg)
 				newIss := model.Issue{
 					Number:    iss.Number,
-					Repo:      repo.Owner + "/" + repo.Repo,
+					Repo:      iss.Owner + "/" + iss.Repo,
 					Title:     iss.Title,
 					URL:       iss.URL,
 					Labels:    iss.Labels,
@@ -79,6 +103,37 @@ var scanCmd = &cobra.Command{
 				added++
 				fmt.Printf("  + [%.0f] #%d %s\n", score, iss.Number, truncate(iss.Title, 60))
 			}
+		}
+
+		// Remove issues whose repo/org is no longer in config
+		allowedRepos := make(map[string]bool)
+		allowedOrgs := make(map[string]bool)
+		for _, r := range repos {
+			if r.Repo != "" {
+				allowedRepos[r.Owner+"/"+r.Repo] = true
+			}
+			for _, rn := range r.Repos {
+				allowedRepos[r.Owner+"/"+rn] = true
+			}
+			if r.Repo == "" && len(r.Repos) == 0 {
+				allowedOrgs[r.Owner] = true
+			}
+		}
+
+		var pruned int
+		kept := existing[:0]
+		for _, iss := range existing {
+			parts := strings.SplitN(iss.Repo, "/", 2)
+			org := parts[0]
+			if allowedRepos[iss.Repo] || allowedOrgs[org] {
+				kept = append(kept, iss)
+			} else {
+				pruned++
+			}
+		}
+		existing = kept
+		if pruned > 0 {
+			fmt.Printf("Pruned %d issues from repos no longer in config.\n", pruned)
 		}
 
 		if err := data.SaveIssues(dataDir, existing); err != nil {

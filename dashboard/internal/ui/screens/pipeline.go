@@ -52,10 +52,12 @@ const (
 const (
 	filterAll        = "all"
 	filterCandidate  = "candidate"
-	filterEvaluating = "evaluating"
+	filterNeedsEval  = "needs-evaluate"
+	filterEvaluated  = "evaluated"
 	filterInProgress = "in-progress"
-	filterMerged     = "merged"
-	filterSkip       = "skip"
+	filterMerged    = "merged"
+	filterRejected  = "rejected"
+	filterSkip      = "skip"
 )
 
 type pipelineTab struct {
@@ -66,18 +68,20 @@ type pipelineTab struct {
 var pipelineTabs = []pipelineTab{
 	{filterAll, "ALL"},
 	{filterCandidate, "CANDIDATE"},
-	{filterEvaluating, "EVALUATING"},
+	{filterNeedsEval, "NEEDS-EVAL"},
+	{filterEvaluated, "EVALUATED"},
 	{filterInProgress, "IN-PROGRESS"},
 	{filterMerged, "MERGED"},
+	{filterRejected, "REJECTED"},
 	{filterSkip, "SKIP"},
 }
 
 var sortCycle = []string{sortScore, sortDate, sortRepo, sortStatus}
 
-var statusOptions = []string{"candidate", "evaluating", "in-progress", "merged", "skip"}
+var statusOptions = []string{"candidate", "needs-evaluate", "evaluated", "in-progress", "merged", "rejected", "skip"}
 
 // statusGroupOrder defines display order for grouped view.
-var statusGroupOrder = []string{"in-progress", "evaluating", "candidate", "merged", "skip"}
+var statusGroupOrder = []string{"in-progress", "evaluated", "needs-evaluate", "candidate", "merged", "rejected", "skip"}
 
 // PipelineModel implements the OSS radar pipeline dashboard screen.
 type PipelineModel struct {
@@ -276,6 +280,25 @@ func (m PipelineModel) handleKey(msg tea.KeyMsg) (PipelineModel, tea.Cmd) {
 		// Open issue URL in browser
 		if iss, ok := m.CurrentIssue(); ok && iss.URL != "" {
 			u := iss.URL
+			return m, func() tea.Msg {
+				return PipelineOpenURLMsg{URL: u}
+			}
+		}
+
+	case "R":
+		// Open evaluation report
+		if iss, ok := m.CurrentIssue(); ok && iss.ReportPath != "" {
+			path := iss.ReportPath
+			title := iss.Title
+			return m, func() tea.Msg {
+				return PipelineOpenReportMsg{Path: path, Title: title}
+			}
+		}
+
+	case "p":
+		// Open PR URL in browser
+		if iss, ok := m.CurrentIssue(); ok && iss.PRURL != "" {
+			u := iss.PRURL
 			return m, func() tea.Msg {
 				return PipelineOpenURLMsg{URL: u}
 			}
@@ -870,7 +893,7 @@ func (m PipelineModel) renderPreview() string {
 	// PR URL if in-progress
 	if iss.PRURL != "" {
 		lines = append(lines, padStyle.Render(
-			labelStyle.Render("PR: ")+valueStyle.Render(iss.PRURL)))
+			labelStyle.Render("PR: ")+valueStyle.Render(iss.PRURL)+dimStyle.Render("  (p: open)")))
 	}
 
 	// Notes
@@ -885,8 +908,12 @@ func (m PipelineModel) renderPreview() string {
 			labelStyle.Render("Est: ")+dimStyle.Render(iss.TimeEst)))
 	}
 
-	// URL hint
-	lines = append(lines, padStyle.Render(dimStyle.Render(fmt.Sprintf("Enter/o: open %s", iss.URL))))
+	// hints
+	hint := fmt.Sprintf("Enter/o: open issue")
+	if iss.ReportPath != "" {
+		hint += "  R: view report"
+	}
+	lines = append(lines, padStyle.Render(dimStyle.Render(hint)))
 
 	return strings.Join(lines, "\n")
 }
@@ -923,7 +950,9 @@ func (m PipelineModel) renderHelp() string {
 		keyStyle.Render("/") + descStyle.Render(" search  ") +
 		keyStyle.Render("s") + descStyle.Render(" sort  ") +
 		keyStyle.Render("r") + descStyle.Render(" refresh  ") +
-		keyStyle.Render("Enter/o") + descStyle.Render(" open URL  ") +
+		keyStyle.Render("Enter/o") + descStyle.Render(" open issue  ") +
+		keyStyle.Render("p") + descStyle.Render(" open PR  ") +
+		keyStyle.Render("R") + descStyle.Render(" report  ") +
 		keyStyle.Render("c") + descStyle.Render(" change status  ") +
 		keyStyle.Render("v") + descStyle.Render(" view  ") +
 		keyStyle.Render("q") + descStyle.Render(" quit")
@@ -981,11 +1010,13 @@ func (m PipelineModel) scoreStyle(score float64) lipgloss.Style {
 
 func (m PipelineModel) statusColorMap() map[string]lipgloss.Color {
 	return map[string]lipgloss.Color{
-		"in-progress": m.theme.Green,
-		"candidate":   m.theme.Blue,
-		"evaluating":  m.theme.Sky,
-		"merged":      m.theme.Mauve,
-		"skip":        m.theme.Red,
+		"in-progress":    m.theme.Green,
+		"evaluated":      m.theme.Sky,
+		"needs-evaluate": m.theme.Yellow,
+		"candidate":      m.theme.Blue,
+		"merged":         m.theme.Mauve,
+		"rejected":       m.theme.Red,
+		"skip":           m.theme.Overlay,
 	}
 }
 
@@ -1017,10 +1048,14 @@ func statusLabel(norm string) string {
 		return "In-Progress"
 	case "candidate":
 		return "Candidate"
-	case "evaluating":
-		return "Evaluating"
+	case "needs-evaluate":
+		return "Needs-Eval"
+	case "evaluated":
+		return "Evaluated"
 	case "merged":
 		return "Merged"
+	case "rejected":
+		return "Rejected"
 	case "skip":
 		return "Skip"
 	default:

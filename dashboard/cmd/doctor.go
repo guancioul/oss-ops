@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 
 	ghclient "github.com/guancioul/oss-radar/internal/github"
 )
@@ -63,14 +63,14 @@ var doctorCmd = &cobra.Command{
 			}
 		}
 
-		// 7. issues.json (optional — warn if malformed, ok if absent)
-		issuesPath := filepath.Join(dataDir, "issues.json")
+		// 7. issues.yaml (optional — warn if malformed, ok if absent)
+		issuesPath := filepath.Join(dataDir, "issues.yaml")
 		if raw, err := os.ReadFile(issuesPath); err == nil {
 			var v map[string]any
-			malformed := json.Unmarshal(raw, &v) != nil
-			check("issues.json parses correctly", !malformed, "file exists but is not valid JSON — delete it to reset")
+			malformed := yaml.Unmarshal(raw, &v) != nil
+			check("issues.yaml parses correctly", !malformed, "file exists but is not valid YAML — delete it to reset")
 		} else {
-			fmt.Printf("  -  issues.json not found (will be created on first scan)\n")
+			fmt.Printf("  -  issues.yaml not found (will be created on first scan)\n")
 		}
 
 		fmt.Println()

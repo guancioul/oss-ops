@@ -25,18 +25,32 @@ func Score(issue ghclient.Issue, repoCfg RepoConfig) float64 {
 		score += 5
 	}
 
-	// Label bonuses
+	// Label bonuses — accessibility labels take the max, not sum
+	accessBonus := 0.0
+	needsProposal := false
+	blocked := false
 	for _, label := range issue.Labels {
 		switch strings.ToLower(label) {
 		case "good-start", "good first issue":
-			score += 15
+			if 15 > accessBonus {
+				accessBonus = 15
+			}
 		case "help-wanted", "help wanted":
-			score += 10
+			if 10 > accessBonus {
+				accessBonus = 10
+			}
 		case "needs-proposal", "needs proposal":
-			score += 10
+			needsProposal = true
 		case "blocked":
-			score -= 20
+			blocked = true
 		}
+	}
+	score += accessBonus
+	if needsProposal {
+		score += 10
+	}
+	if blocked {
+		score -= 20
 	}
 
 	// Staleness penalty
@@ -47,13 +61,24 @@ func Score(issue ghclient.Issue, repoCfg RepoConfig) float64 {
 		score -= 15
 	}
 
-	// Focus area keyword match
+	// Focus area keyword match (title + body)
 	titleLower := strings.ToLower(issue.Title)
+	bodyLower := strings.ToLower(issue.Body)
 	for _, area := range repoCfg.FocusAreas {
-		if strings.Contains(titleLower, strings.ToLower(area)) {
+		areaLower := strings.ToLower(area)
+		if strings.Contains(titleLower, areaLower) {
 			score += 10
 			break
 		}
+		if strings.Contains(bodyLower, areaLower) {
+			score += 5
+			break
+		}
+	}
+
+	// Competition signals
+	if issue.Comments > 10 {
+		score -= 10
 	}
 
 	if score > 100 {

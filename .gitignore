@@ -1,7 +1,8 @@
 # OSS Radar data (user-generated, not committed)
-issues.json
+issues.yaml
 config.yaml
 oss-radar
+reports/
 
 # OS
 .DS_Store
