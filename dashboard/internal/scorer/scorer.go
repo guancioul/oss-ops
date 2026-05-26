@@ -33,7 +33,7 @@ func Score(issue ghclient.Issue, repoCfg RepoConfig) float64 {
 		case "help-wanted", "help wanted":
 			score += 10
 		case "needs-proposal", "needs proposal":
-			score -= 15
+			score += 10
 		case "blocked":
 			score -= 20
 		}
