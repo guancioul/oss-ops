@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
 	"os/exec"
 	"runtime"
 
@@ -115,10 +113,6 @@ func (m appModel) View() string {
 
 func runDashboard(dir string) error {
 	issues := data.LoadIssues(dir)
-	if issues == nil {
-		fmt.Fprintf(os.Stderr, "No issues.json found in %s. Run `oss-radar scan` first.\n", dir)
-		return nil
-	}
 	metrics := data.ComputeMetrics(issues)
 	t := theme.NewTheme("auto")
 	pm := screens.NewPipelineModel(t, issues, metrics, dir, 120, 40)
