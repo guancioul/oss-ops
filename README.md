@@ -1,6 +1,8 @@
-# oss-radar
+# oss-ops
 
 Claude Code skill for discovering, scoring, and tracking open source contribution opportunities.
+
+> Inspired by [career-ops](https://github.com/santifer/career-ops).
 
 ## Usage
 
