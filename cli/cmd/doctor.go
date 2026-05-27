@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 
-	ghclient "github.com/guancioul/oss-radar/internal/github"
+	ghclient "github.com/guancioul/oss-ops/internal/github"
 )
 
 var doctorCmd = &cobra.Command{
@@ -30,7 +30,7 @@ var doctorCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println("\noss-radar doctor\n")
+		fmt.Println("\noss-ops doctor\n")
 
 		// 1. config.yaml
 		_, err := os.Stat(cfgFile)
@@ -75,9 +75,9 @@ var doctorCmd = &cobra.Command{
 
 		fmt.Println()
 		if ok {
-			fmt.Println("All checks passed. Run `oss-radar scan` to get started.")
+			fmt.Println("All checks passed. Run `oss-ops scan` to get started.")
 		} else {
-			fmt.Println("Fix the issues above, then re-run `oss-radar doctor`.")
+			fmt.Println("Fix the issues above, then re-run `oss-ops doctor`.")
 			return fmt.Errorf("doctor found problems")
 		}
 		return nil

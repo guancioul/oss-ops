@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	ghclient "github.com/guancioul/oss-radar/internal/github"
+	ghclient "github.com/guancioul/oss-ops/internal/github"
 )
 
 type RepoConfig struct {

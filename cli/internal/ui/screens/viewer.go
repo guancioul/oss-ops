@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/guancioul/oss-radar/internal/theme"
+	"github.com/guancioul/oss-ops/internal/theme"
 )
 
 // ViewerClosedMsg is emitted when the viewer is dismissed.

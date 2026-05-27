@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/guancioul/oss-radar/internal/data"
+	"github.com/guancioul/oss-ops/internal/data"
 )
 
 var trackCmd = &cobra.Command{

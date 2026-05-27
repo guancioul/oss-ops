@@ -8,7 +8,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
-	ghclient "github.com/guancioul/oss-radar/internal/github"
+	ghclient "github.com/guancioul/oss-ops/internal/github"
 )
 
 type Evaluation struct {

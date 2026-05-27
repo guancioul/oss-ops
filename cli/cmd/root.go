@@ -15,7 +15,7 @@ var cfgFile string
 var dataDir string
 
 var rootCmd = &cobra.Command{
-	Use:   "oss-radar",
+	Use:   "oss-ops",
 	Short: "Discover, score, and track open source contribution opportunities",
 }
 

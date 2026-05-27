@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/guancioul/oss-radar/internal/theme"
+	"github.com/guancioul/oss-ops/internal/theme"
 )
 
 func TestViewerRebuildRenderClampsScrollOffset(t *testing.T) {

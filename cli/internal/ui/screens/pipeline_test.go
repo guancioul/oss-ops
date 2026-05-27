@@ -5,8 +5,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/guancioul/oss-radar/internal/model"
-	"github.com/guancioul/oss-radar/internal/theme"
+	"github.com/guancioul/oss-ops/internal/model"
+	"github.com/guancioul/oss-ops/internal/theme"
 )
 
 func tabIndexForFilter(t *testing.T, filter string) int {

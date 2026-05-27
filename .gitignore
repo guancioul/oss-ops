@@ -1,7 +1,7 @@
 # OSS Radar data (user-generated, not committed)
 issues.yaml
 config.yaml
-oss-radar
+oss-ops
 reports/
 
 # OS
@@ -13,7 +13,7 @@ reports/
 .env
 
 # Go build artifacts
-dashboard/oss-radar
+dashboard/oss-ops
 
 # Claude Code local
 .claude/settings.local.json

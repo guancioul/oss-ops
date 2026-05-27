@@ -1,6 +1,6 @@
 package main
 
-import "github.com/guancioul/oss-radar/cmd"
+import "github.com/guancioul/oss-ops/cmd"
 
 func main() {
 	cmd.Execute()

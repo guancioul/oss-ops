@@ -1,4 +1,4 @@
-module github.com/guancioul/oss-radar
+module github.com/guancioul/oss-ops
 
 go 1.24.2
 

@@ -8,9 +8,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/guancioul/oss-radar/internal/data"
-	"github.com/guancioul/oss-radar/internal/model"
-	"github.com/guancioul/oss-radar/internal/theme"
+	"github.com/guancioul/oss-ops/internal/data"
+	"github.com/guancioul/oss-ops/internal/model"
+	"github.com/guancioul/oss-ops/internal/theme"
 )
 
 // PipelineClosedMsg is emitted when the pipeline screen is dismissed.
@@ -943,7 +943,7 @@ func (m PipelineModel) renderHelp() string {
 				keyStyle.Render("Esc") + descStyle.Render(" cancel"))
 	}
 
-	brand := lipgloss.NewStyle().Foreground(m.theme.Overlay).Render("oss-radar")
+	brand := lipgloss.NewStyle().Foreground(m.theme.Overlay).Render("oss-ops")
 
 	keys := keyStyle.Render("↑↓/jk") + descStyle.Render(" nav  ") +
 		keyStyle.Render("←→/hl") + descStyle.Render(" tabs  ") +

@@ -7,9 +7,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	"github.com/guancioul/oss-radar/internal/data"
-	"github.com/guancioul/oss-radar/internal/theme"
-	"github.com/guancioul/oss-radar/internal/ui/screens"
+	"github.com/guancioul/oss-ops/internal/data"
+	"github.com/guancioul/oss-ops/internal/theme"
+	"github.com/guancioul/oss-ops/internal/ui/screens"
 )
 
 var dashCmd = &cobra.Command{

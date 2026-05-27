@@ -14,7 +14,7 @@
 - `reports/` directory support with `report_path` field in Issue model
 
 ### Changed
-- Project renamed from **oss-radar** to **oss-ops**
+- Project renamed from **oss-ops** to **oss-ops**
 - `issues.json` → `issues.yaml` (auto-migrates on first run)
 - `sync` rewritten: searches `involves:user` per configured repo/org instead of global PR search
 - `sync` uses batched GraphQL `closingIssuesReferences` to accurately match PRs to issues

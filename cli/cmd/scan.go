@@ -9,10 +9,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/guancioul/oss-radar/internal/data"
-	ghclient "github.com/guancioul/oss-radar/internal/github"
-	"github.com/guancioul/oss-radar/internal/model"
-	"github.com/guancioul/oss-radar/internal/scorer"
+	"github.com/guancioul/oss-ops/internal/data"
+	ghclient "github.com/guancioul/oss-ops/internal/github"
+	"github.com/guancioul/oss-ops/internal/model"
+	"github.com/guancioul/oss-ops/internal/scorer"
 )
 
 type repoConfig struct {

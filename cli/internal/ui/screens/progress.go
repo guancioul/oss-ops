@@ -7,8 +7,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/guancioul/oss-radar/internal/model"
-	"github.com/guancioul/oss-radar/internal/theme"
+	"github.com/guancioul/oss-ops/internal/model"
+	"github.com/guancioul/oss-ops/internal/theme"
 )
 
 // ProgressClosedMsg is emitted when the progress screen is dismissed.
@@ -261,7 +261,7 @@ func (m ProgressModel) renderHelp() string {
 	keyStyle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Text)
 	descStyle := lipgloss.NewStyle().Foreground(m.theme.Subtext)
 
-	brand := lipgloss.NewStyle().Foreground(m.theme.Overlay).Render("oss-radar")
+	brand := lipgloss.NewStyle().Foreground(m.theme.Overlay).Render("oss-ops")
 
 	keys := keyStyle.Render("↑↓") + descStyle.Render(" scroll  ") +
 		keyStyle.Render("PgUp/Dn") + descStyle.Render(" page  ") +

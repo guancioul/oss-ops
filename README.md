@@ -9,35 +9,35 @@ Claude Code skill for discovering, scoring, and tracking open source contributio
 Most commands run as a **Claude Code skill**:
 
 ```
-/oss-radar scan       → Scan configured repos / orgs for open issues
-/oss-radar sync       → Sync your GitHub PR history into issues.yaml
-/oss-radar evaluate   → AI evaluation for one issue (Claude Code only)
-/oss-radar track      → Link a PR to a tracked issue
+/oss-ops scan       → Scan configured repos / orgs for open issues
+/oss-ops sync       → Sync your GitHub PR history into issues.yaml
+/oss-ops evaluate   → AI evaluation for one issue (Claude Code only)
+/oss-ops track      → Link a PR to a tracked issue
 ```
 
 Build once from the project root:
 
 ```bash
-go build -o oss-radar ./dashboard
+go build -o oss-ops ./cli
 ```
 
 Then run any command:
 
 ```bash
-./oss-radar doctor                 # check config + connectivity
-./oss-radar scan                   # scan repos for issues
-./oss-radar sync                   # sync your GitHub PR history into issues.yaml
-./oss-radar dashboard              # open TUI
-./oss-radar track <pr-url>         # link a PR to a tracked issue
-./oss-radar track <pr-url> --issue <issue-url>  # link to a specific issue
+./oss-ops doctor                 # check config + connectivity
+./oss-ops scan                   # scan repos for issues
+./oss-ops sync                   # sync your GitHub PR history into issues.yaml
+./oss-ops dashboard              # open TUI
+./oss-ops track <pr-url>         # link a PR to a tracked issue
+./oss-ops track <pr-url> --issue <issue-url>  # link to a specific issue
 ```
 
 To install to PATH:
 
 ```bash
-go build -o /usr/local/bin/oss-radar ./dashboard
+go build -o /usr/local/bin/oss-ops ./cli
 # then run from anywhere:
-oss-radar doctor
+oss-ops doctor
 ```
 
 ## Setup
@@ -99,6 +99,3 @@ Issues with an assignee are filtered out at scan time and never appear.
 ## Tech
 
 Go + [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lipgloss](https://github.com/charmbracelet/lipgloss) (Catppuccin Mocha) + GitHub API + Claude API (`claude-sonnet-4-6`)
-
-## To-Do
-* [ ] Improve evaluate method

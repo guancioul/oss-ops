@@ -38,10 +38,10 @@
           - modes/ja/**
           - modes/ru/**
 
-"📊 dashboard":
+"📊 cli":
   - changed-files:
       - any-glob-to-any-file:
-          - dashboard/**
+          - cli/**
 
 "📦 dependencies":
   - changed-files:
