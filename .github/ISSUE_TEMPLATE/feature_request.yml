@@ -3,13 +3,6 @@ description: Suggest a new feature or improvement
 labels: ["enhancement"]
 body:
   - type: checkboxes
-    id: coc
-    attributes:
-      label: Code of Conduct
-      options:
-        - label: I agree to follow the [Code of Conduct](https://github.com/santifer/career-ops/blob/main/CODE_OF_CONDUCT.md)
-          required: true
-  - type: checkboxes
     id: search
     attributes:
       label: Existing issues
@@ -35,12 +28,10 @@ body:
     attributes:
       label: Area
       options:
-        - Evaluation / Scoring
-        - PDF Generation
-        - Portal Scanner
+        - Scoring / Evaluation
+        - GitHub Sync
         - Dashboard TUI
-        - Batch Processing
-        - Language / i18n
+        - CLI / Commands
         - Documentation
         - Other
     validations:

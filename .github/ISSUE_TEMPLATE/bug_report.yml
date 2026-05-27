@@ -1,14 +1,7 @@
 name: Bug Report
-description: Report a bug in career-ops
+description: Report a bug in oss-ops
 labels: ["bug"]
 body:
-  - type: checkboxes
-    id: coc
-    attributes:
-      label: Code of Conduct
-      options:
-        - label: I agree to follow the [Code of Conduct](https://github.com/santifer/career-ops/blob/main/CODE_OF_CONDUCT.md)
-          required: true
   - type: checkboxes
     id: search
     attributes:
@@ -36,18 +29,13 @@ body:
       label: Expected behavior
       description: What should have happened?
   - type: input
-    id: cli
-    attributes:
-      label: CLI tool
-      placeholder: "e.g., Claude Code, OpenCode, Codex"
-  - type: input
     id: os
     attributes:
-      label: OS and Node.js version
-      placeholder: "e.g., macOS 15 / Node 20.11"
+      label: OS and Go version
+      placeholder: "e.g., macOS 15 / Go 1.24"
   - type: textarea
     id: doctor
     attributes:
-      label: Output of npm run doctor
-      description: Paste the output here (helps us diagnose setup issues)
+      label: Output of oss-ops doctor
+      description: Paste the output here (helps diagnose setup issues)
       render: shell
