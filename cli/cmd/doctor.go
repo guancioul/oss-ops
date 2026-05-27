@@ -30,7 +30,7 @@ var doctorCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println("\noss-ops doctor\n")
+		fmt.Println("\noss-ops doctor")
 
 		// 1. config.yaml
 		_, err := os.Stat(cfgFile)
