@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0 (2026-05-27)
+
+
+### Features
+
+* add doctor command, fix needs-proposal scoring, drop career-ops files ([d5a84c1](https://github.com/guancioul/oss-ops/commit/d5a84c123994ff09c1ee73f248cefabab00a3533))
+* overhaul sync, scorer, pipeline, and data format ([d946497](https://github.com/guancioul/oss-ops/commit/d946497a64f2db50866eda22e94e77e2ec4c4925))
+
+
+### Bug Fixes
+
+* change release-please type from go to simple ([c570a71](https://github.com/guancioul/oss-ops/commit/c570a71b6fb138c86975bf70f5e033bcd5fee9f7))
+* remove stale issues.yaml check in dashboard startup ([146484d](https://github.com/guancioul/oss-ops/commit/146484d981bbe20f1e223c1298d6e049f635a458))
+* set initial-version to 0.1.0 for release-please ([#11](https://github.com/guancioul/oss-ops/issues/11)) ([bda8c94](https://github.com/guancioul/oss-ops/commit/bda8c94d2000044144d45e8bfba6b054144e6eb3))
+
 ## [Unreleased]
 
 ### Added
