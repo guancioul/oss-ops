@@ -12,6 +12,8 @@ import (
 
 	gh "github.com/google/go-github/v62/github"
 	"golang.org/x/oauth2"
+
+	"github.com/guancioul/oss-ops/internal/model"
 )
 
 var issueRefRe = regexp.MustCompile(`#(\d+)`)
@@ -244,6 +246,18 @@ type PR struct {
 	LinkedIssueNumber int
 }
 
+// Domain converts the raw GitHub PR into a clean domain type,
+// collapsing State+Merged into a single PRStatus.
+func (p PR) Domain() model.PR {
+	status := model.PRStatusRejected
+	if p.Merged {
+		status = model.PRStatusMerged
+	} else if p.State == "open" {
+		status = model.PRStatusOpen
+	}
+	return model.PR{Number: p.Number, URL: p.URL, Status: status}
+}
+
 // GetAuthenticatedUser returns the login of the authenticated user.
 func (c *Client) GetAuthenticatedUser(ctx context.Context) (string, error) {
 	u, _, err := c.gh.Users.Get(ctx, "")
@@ -314,47 +328,16 @@ func ownerRepoFromURL(u string) (owner, repo string) {
 }
 
 // SearchInvolvedIssues finds issues in a specific repo where the user is involved.
+// SearchInvolvedIssues finds issues where the user is involved.
+// If repo is empty, searches the entire org.
 func (c *Client) SearchInvolvedIssues(ctx context.Context, owner, repo, username string) ([]Issue, error) {
-	var issues []Issue
-	q := fmt.Sprintf("involves:%s repo:%s/%s is:issue", username, owner, repo)
-	opts := &gh.SearchOptions{ListOptions: gh.ListOptions{PerPage: 100}}
-	for {
-		result, resp, err := c.gh.Search.Issues(ctx, q, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, i := range result.Issues {
-			if i.PullRequestLinks != nil {
-				continue
-			}
-			issue := Issue{
-				Number:    i.GetNumber(),
-				Title:     i.GetTitle(),
-				Body:      i.GetBody(),
-				URL:       i.GetHTMLURL(),
-				Comments:  i.GetComments(),
-				UpdatedAt: i.GetUpdatedAt().Time,
-				Repo:      repo,
-				Owner:     owner,
-				State:     i.GetState(),
-			}
-			for _, l := range i.Labels {
-				issue.Labels = append(issue.Labels, l.GetName())
-			}
-			issues = append(issues, issue)
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
+	scope := fmt.Sprintf("repo:%s/%s", owner, repo)
+	if repo == "" {
+		scope = fmt.Sprintf("org:%s", owner)
 	}
-	return issues, nil
-}
+	q := fmt.Sprintf("involves:%s %s is:issue", username, scope)
 
-// SearchOrgInvolvedIssues finds issues across an entire org where the user is involved.
-func (c *Client) SearchOrgInvolvedIssues(ctx context.Context, org, username string) ([]Issue, error) {
 	var issues []Issue
-	q := fmt.Sprintf("involves:%s org:%s is:issue", username, org)
 	opts := &gh.SearchOptions{ListOptions: gh.ListOptions{PerPage: 100}}
 	for {
 		result, resp, err := c.gh.Search.Issues(ctx, q, opts)
@@ -365,7 +348,10 @@ func (c *Client) SearchOrgInvolvedIssues(ctx context.Context, org, username stri
 			if i.PullRequestLinks != nil {
 				continue
 			}
-			repoName := repoFromURL(i.GetRepositoryURL())
+			repoName, ownerName := repo, owner
+			if repoName == "" {
+				repoName = repoFromURL(i.GetRepositoryURL())
+			}
 			issue := Issue{
 				Number:    i.GetNumber(),
 				Title:     i.GetTitle(),
@@ -374,7 +360,7 @@ func (c *Client) SearchOrgInvolvedIssues(ctx context.Context, org, username stri
 				Comments:  i.GetComments(),
 				UpdatedAt: i.GetUpdatedAt().Time,
 				Repo:      repoName,
-				Owner:     org,
+				Owner:     ownerName,
 				State:     i.GetState(),
 			}
 			for _, l := range i.Labels {
@@ -390,47 +376,16 @@ func (c *Client) SearchOrgInvolvedIssues(ctx context.Context, org, username stri
 	return issues, nil
 }
 
-// SearchOrgPRs finds PRs authored by username across an entire org.
-func (c *Client) SearchOrgPRs(ctx context.Context, org, username string) ([]PR, error) {
-	var prs []PR
-	q := fmt.Sprintf("author:%s org:%s type:pr", username, org)
-	opts := &gh.SearchOptions{ListOptions: gh.ListOptions{PerPage: 100}}
-	for {
-		result, resp, err := c.gh.Search.Issues(ctx, q, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, i := range result.Issues {
-			if i.PullRequestLinks == nil {
-				continue
-			}
-			o, repoName := ownerRepoFromURL(i.GetRepositoryURL())
-			pr := PR{
-				Number:            i.GetNumber(),
-				Title:             i.GetTitle(),
-				Body:              i.GetBody(),
-				URL:               i.GetHTMLURL(),
-				State:             i.GetState(),
-				Merged:            !i.GetPullRequestLinks().GetMergedAt().IsZero(),
-				Repo:              repoName,
-				Owner:             o,
-				UpdatedAt:         i.GetUpdatedAt().Time,
-				LinkedIssueNumber: extractLinkedIssue(i.GetBody()),
-			}
-			prs = append(prs, pr)
-		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
+// SearchPRs finds PRs authored by username.
+// If repo is empty, searches the entire org.
+func (c *Client) SearchPRs(ctx context.Context, owner, repo, username string) ([]PR, error) {
+	scope := fmt.Sprintf("repo:%s/%s", owner, repo)
+	if repo == "" {
+		scope = fmt.Sprintf("org:%s", owner)
 	}
-	return prs, nil
-}
+	q := fmt.Sprintf("author:%s %s type:pr", username, scope)
 
-// SearchRepoPRs finds PRs authored by username in a specific repo.
-func (c *Client) SearchRepoPRs(ctx context.Context, owner, repo, username string) ([]PR, error) {
 	var prs []PR
-	q := fmt.Sprintf("author:%s repo:%s/%s type:pr", username, owner, repo)
 	opts := &gh.SearchOptions{ListOptions: gh.ListOptions{PerPage: 100}}
 	for {
 		result, resp, err := c.gh.Search.Issues(ctx, q, opts)
@@ -441,6 +396,10 @@ func (c *Client) SearchRepoPRs(ctx context.Context, owner, repo, username string
 			if i.PullRequestLinks == nil {
 				continue
 			}
+			prOwner, prRepo := owner, repo
+			if prRepo == "" {
+				prOwner, prRepo = ownerRepoFromURL(i.GetRepositoryURL())
+			}
 			pr := PR{
 				Number:            i.GetNumber(),
 				Title:             i.GetTitle(),
@@ -448,8 +407,8 @@ func (c *Client) SearchRepoPRs(ctx context.Context, owner, repo, username string
 				URL:               i.GetHTMLURL(),
 				State:             i.GetState(),
 				Merged:            !i.GetPullRequestLinks().GetMergedAt().IsZero(),
-				Repo:              repo,
-				Owner:             owner,
+				Repo:              prRepo,
+				Owner:             prOwner,
 				UpdatedAt:         i.GetUpdatedAt().Time,
 				LinkedIssueNumber: extractLinkedIssue(i.GetBody()),
 			}

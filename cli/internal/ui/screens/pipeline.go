@@ -802,7 +802,10 @@ func (m PipelineModel) renderIssueLine(iss model.Issue, selected bool) string {
 
 	// Score with color
 	scoreStyle := m.scoreStyle(iss.Score)
-	scoreText := fmt.Sprintf("%.0f", iss.Score)
+	scoreText := "-"
+	if iss.Score > 0 {
+		scoreText = fmt.Sprintf("%.0f", iss.Score)
+	}
 	score := lipgloss.NewStyle().Width(scoreW).Render(scoreStyle.Render(scoreText))
 
 	// Repo (truncate)

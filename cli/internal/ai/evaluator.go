@@ -12,10 +12,11 @@ import (
 )
 
 type Evaluation struct {
-	Verdict  string `json:"verdict"` // yes/maybe/no
-	Reason   string `json:"reason"`
-	TimeEst  string `json:"time_est"`
-	Approach string `json:"approach"`
+	Verdict  string  `json:"verdict"`  // yes/maybe/no
+	Score    float64 `json:"score"`    // 0-100
+	Reason   string  `json:"reason"`
+	TimeEst  string  `json:"time_est"`
+	Approach string  `json:"approach"`
 }
 
 type Evaluator struct {
@@ -40,6 +41,7 @@ Body (first 1000 chars): %.1000s
 Evaluate this issue and respond with JSON only:
 {
   "verdict": "yes|maybe|no",
+  "score": <0-100 integer, overall suitability for contribution>,
   "reason": "one sentence explanation",
   "time_est": "e.g. 2-4 hours / 1-2 days / 1 week",
   "approach": "brief suggested approach (1-2 sentences)"

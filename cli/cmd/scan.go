@@ -4,24 +4,20 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/guancioul/oss-ops/internal/data"
 	ghclient "github.com/guancioul/oss-ops/internal/github"
-	"github.com/guancioul/oss-ops/internal/model"
-	"github.com/guancioul/oss-ops/internal/scorer"
+	"github.com/guancioul/oss-ops/internal/scan"
 )
 
 type repoConfig struct {
-	Owner      string   `mapstructure:"owner"`
-	Repo       string   `mapstructure:"repo"`
-	Repos      []string `mapstructure:"repos"`
-	Labels     []string `mapstructure:"labels"`
-	Priority   string   `mapstructure:"priority"`
-	FocusAreas []string `mapstructure:"focus_areas"`
+	Owner  string   `mapstructure:"owner"`
+	Repo   string   `mapstructure:"repo"`
+	Repos  []string `mapstructure:"repos"`
+	Labels []string `mapstructure:"labels"`
 }
 
 var scanCmd = &cobra.Command{
@@ -37,111 +33,90 @@ var scanCmd = &cobra.Command{
 			return nil
 		}
 
-		existing := data.LoadIssues(dataDir)
-		existingURLs := make(map[string]bool)
-		for _, iss := range existing {
-			existingURLs[iss.URL] = true
+		// Step 1: config → maps
+		configuredRepos, configuredOrgs := buildConfigMaps(repos)
+
+		// Step 2: existing → byURL
+		tracked := data.LoadIssues(dataDir)
+		byURL := make(map[string]int)
+		for i, iss := range tracked {
+			byURL[iss.URL] = i
 		}
 
-		var added int
+		// Step 3: fetch all from GitHub
 		ctx := context.Background()
+		allFetched, scannedRepos, scannedOrgs := fetchAll(ctx, client, configuredRepos, configuredOrgs)
 
-		for _, repo := range repos {
-			// Expand into a flat list of (owner, repoName) targets.
-			// Priority: repos[] > repo > org-level search.
-			targets := repo.Repos
-			if len(targets) == 0 && repo.Repo != "" {
-				targets = []string{repo.Repo}
-			}
+		// Step 4: build batch
+		batch, fetchedURLs := scan.BuildBatch(allFetched, tracked, byURL)
+		batch = scan.AppendClosed(batch, tracked, fetchedURLs, scannedRepos, scannedOrgs)
 
-			var allIssues []ghclient.Issue
-			if len(targets) == 0 {
-				fmt.Printf("Scanning org %s...\n", repo.Owner)
-				iss, err := client.SearchOrgIssues(ctx, repo.Owner, repo.Labels)
-				if err != nil {
-					fmt.Printf("  Error: %v\n", err)
-					continue
-				}
-				allIssues = iss
-			} else {
-				for _, repoName := range targets {
-					fmt.Printf("Scanning %s/%s...\n", repo.Owner, repoName)
-					iss, err := client.ListIssues(ctx, repo.Owner, repoName, repo.Labels)
-					if err != nil {
-						fmt.Printf("  Error: %v\n", err)
-						continue
-					}
-					allIssues = append(allIssues, iss...)
-				}
-			}
+		// Step 5: apply batch
+		added, updated := scan.ApplyBatch(batch, &tracked)
 
-			for _, iss := range allIssues {
-				if len(iss.Assignees) > 0 {
-					continue // skip assigned
-				}
-				if existingURLs[iss.URL] {
-					continue // already tracked
-				}
-				repoCfg := scorer.RepoConfig{
-					Priority:   repo.Priority,
-					FocusAreas: repo.FocusAreas,
-				}
-				score := scorer.Score(iss, repoCfg)
-				newIss := model.Issue{
-					Number:    iss.Number,
-					Repo:      iss.Owner + "/" + iss.Repo,
-					Title:     iss.Title,
-					URL:       iss.URL,
-					Labels:    iss.Labels,
-					Status:    "candidate",
-					Score:     score,
-					UpdatedAt: iss.UpdatedAt.Format("2006-01-02"),
-					FoundAt:   time.Now().Format("2006-01-02"),
-				}
-				existing = append(existing, newIss)
-				existingURLs[iss.URL] = true
-				added++
-				fmt.Printf("  + [%.0f] #%d %s\n", score, iss.Number, truncate(iss.Title, 60))
-			}
-		}
-
-		// Remove issues whose repo/org is no longer in config
-		allowedRepos := make(map[string]bool)
-		allowedOrgs := make(map[string]bool)
-		for _, r := range repos {
-			if r.Repo != "" {
-				allowedRepos[r.Owner+"/"+r.Repo] = true
-			}
-			for _, rn := range r.Repos {
-				allowedRepos[r.Owner+"/"+rn] = true
-			}
-			if r.Repo == "" && len(r.Repos) == 0 {
-				allowedOrgs[r.Owner] = true
-			}
-		}
-
-		var pruned int
-		kept := existing[:0]
-		for _, iss := range existing {
-			parts := strings.SplitN(iss.Repo, "/", 2)
-			org := parts[0]
-			if allowedRepos[iss.Repo] || allowedOrgs[org] {
-				kept = append(kept, iss)
-			} else {
-				pruned++
-			}
-		}
-		existing = kept
+		// Prune repos no longer in config
+		pruned := scan.PruneUnconfigured(&tracked, configuredRepos, configuredOrgs)
 		if pruned > 0 {
 			fmt.Printf("Pruned %d issues from repos no longer in config.\n", pruned)
 		}
 
-		if err := data.SaveIssues(dataDir, existing); err != nil {
+		if err := data.SaveIssues(dataDir, tracked); err != nil {
 			return err
 		}
-		fmt.Printf("\nAdded %d new issues. Total: %d\n", added, len(existing))
+		fmt.Printf("\nAdded: %d  Updated: %d  Total: %d\n", added, updated, len(tracked))
 		return nil
 	},
+}
+
+func buildConfigMaps(repos []repoConfig) (configuredRepos, configuredOrgs map[string]scan.ConfigEntry) {
+	configuredRepos = make(map[string]scan.ConfigEntry)
+	configuredOrgs = make(map[string]scan.ConfigEntry)
+	for _, r := range repos {
+		targets := r.Repos
+		if len(targets) == 0 && r.Repo != "" {
+			targets = []string{r.Repo}
+		}
+		if len(targets) == 0 {
+			configuredOrgs[r.Owner] = scan.ConfigEntry{Labels: r.Labels}
+		} else {
+			for _, rn := range targets {
+				configuredRepos[r.Owner+"/"+rn] = scan.ConfigEntry{Labels: r.Labels}
+			}
+		}
+	}
+	return
+}
+
+func fetchAll(ctx context.Context, client *ghclient.Client, configuredRepos, configuredOrgs map[string]scan.ConfigEntry) (
+	allFetched []ghclient.Issue,
+	scannedRepos map[string]bool,
+	scannedOrgs map[string]bool,
+) {
+	scannedRepos = make(map[string]bool)
+	scannedOrgs = make(map[string]bool)
+
+	for repoFull, entry := range configuredRepos {
+		parts := strings.SplitN(repoFull, "/", 2)
+		fmt.Printf("Scanning %s...\n", repoFull)
+		iss, err := client.ListIssues(ctx, parts[0], parts[1], entry.Labels)
+		if err != nil {
+			fmt.Printf("  Error: %v\n", err)
+			continue
+		}
+		scannedRepos[repoFull] = true
+		allFetched = append(allFetched, iss...)
+	}
+	for org, entry := range configuredOrgs {
+		fmt.Printf("Scanning org %s...\n", org)
+		iss, err := client.SearchOrgIssues(ctx, org, entry.Labels)
+		if err != nil {
+			fmt.Printf("  Error: %v\n", err)
+			continue
+		}
+		scannedOrgs[org] = true
+		allFetched = append(allFetched, iss...)
+	}
+	return
 }
 
 func init() {

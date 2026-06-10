@@ -1,20 +1,12 @@
 profile:
+  github: ""   # your GitHub username — used to fetch PR history for evaluate
   goal: "Become Strimzi Component Owner. Focus on reconciler, connector, and operator core areas."
   skills: ["Java", "Go", "Kubernetes", "Kafka"]
+  custom_prompt: ""  # extra instructions for AI evaluation, e.g. "Prefer issues with clear specs. Avoid UI-only changes."
 
 repos:
   - owner: strimzi
-    repo: strimzi-kafka-operator
     labels: [help-wanted, good-start]
-    priority: high
-    focus_areas: [reconciler, connector, operator, certificate]
-  - owner: strimzi
-    repo: strimzi-kafka-bridge
-    labels: [good-start]
-    priority: medium
-    focus_areas: [bridge, http, refactor]
   - owner: open-telemetry
     repo: otel-arrow
     labels: [good first issue, help wanted]
-    priority: medium
-    focus_areas: [query-engine, otlp, scalar]
