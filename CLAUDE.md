@@ -1,22 +1,45 @@
 # oss-ops
 
-CLI + TUI for discovering, scoring, and tracking open source contribution opportunities.
+CLI + TUI for discovering and tracking open source contribution opportunities.
 
 ## What it does
 
-Scans GitHub repos for open issues, scores them with a rule-based scorer, lets you run Claude AI evaluation on individual issues, and tracks your contribution pipeline in a Bubble Tea TUI.
+Scans GitHub repos for open issues, scores them with a rule-based scorer, and tracks your contribution pipeline in a Bubble Tea TUI.
+
+## Architecture
+
+Three-layer architecture. Follow **SOLID principles** when implementing new features.
+
+```text
+cmd/              ← CLI boundary only: parse flags, print output, nothing else
+internal/app/     ← orchestration: coordinates layers below, one file per command
+internal/
+  model/          ← domain types (no dependencies on other internal packages)
+  scan/           ← batch logic (pure, no I/O)
+  github/         ← GitHub API adapter
+  data/           ← YAML persistence adapter
+  ui/             ← Bubble Tea TUI
+  theme/          ← styling
+```
+
+Import rules:
+
+- `cmd` → `app`, `model` only (never imports `scan`, `data`, `github` directly)
+- `app` → `model`, `scan`, `data`, `github` (never imports `cmd`, `ui`)
+- `scan/data/github` → `model` only (never import each other)
+- `ui` → `model`, `data`, `theme` (never imports `app`, `cmd`)
 
 ## Main Files
 
 | Path | Purpose |
-|------|---------|
-| `config.yaml` | GitHub token, Claude API key, repos, profile |
+| --- | --- |
+| `config.yaml` | GitHub token, repos, profile |
 | `cli/` | Go source (Cobra CLI + Bubble Tea TUI) |
-| `cli/internal/scorer/scorer.go` | Rule-based scoring (0–100) |
-| `cli/internal/ai/evaluator.go` | Claude AI evaluation |
+| `cli/internal/app/` | Orchestration layer (use cases) |
 | `cli/internal/github/client.go` | GitHub API client |
 | `cli/internal/data/issues.go` | issues.yaml read/write |
-| `cli/internal/model/issue.go` | Issue struct |
+| `cli/internal/model/` | Domain types |
+| `cli/internal/scan/batch.go` | Batch processing logic |
 | `issues.yaml` | Local tracker (gitignored) |
 
 ## Commands
@@ -24,31 +47,24 @@ Scans GitHub repos for open issues, scores them with a rule-based scorer, lets y
 ```bash
 oss-ops doctor              # check config + connectivity
 oss-ops scan                # discover issues from configured repos
-oss-ops evaluate <url>      # rule-based + Claude scoring for one issue
 oss-ops dashboard           # TUI browser
-oss-ops track <pr-url>      # link a PR to a tracked issue
 ```
-
-## Scoring
-
-Rule-based scorer in `cli/internal/scorer/scorer.go`. Base 50, capped 0–100:
-
-| Signal | Points |
-|--------|--------|
-| Repo priority high / medium / low | +20 / +10 / +5 |
-| Label: good-start / good first issue | +15 |
-| Label: help-wanted | +10 |
-| Label: needs-proposal | +10 |
-| Label: blocked | -20 |
-| Updated within 30 days | +10 |
-| Not updated in 180+ days | -15 |
-| Title matches a focus_area keyword | +10 |
-
-AI evaluation (`oss-ops evaluate`) calls Claude with the user's `profile.goal` and returns verdict (yes/maybe/no), reason, time estimate, and suggested approach.
 
 ## Issue Statuses
 
-`candidate` → `evaluating` → `in-progress` → `merged` / `skip`
+```text
+candidate → needs-evaluate → evaluated → in-progress → merged
+                                                      → rejected
+candidate → skip
+```
+
+## Writing Standards
+
+All Markdown files must pass `markdownlint`. Key rules:
+
+- Fenced code blocks must specify a language (` ```go `, ` ```bash `, ` ```text `, etc.)
+- Lists must be surrounded by blank lines
+- Table pipes must have spaces on both sides of cell content
 
 ## Stack
 

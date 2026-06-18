@@ -29,6 +29,7 @@
 - `reports/` directory support with `report_path` field in Issue model
 
 ### Changed
+
 - Project renamed from **oss-ops** to **oss-ops**
 - `issues.json` → `issues.yaml` (auto-migrates on first run)
 - `sync` rewritten: searches `involves:user` per configured repo/org instead of global PR search
@@ -39,6 +40,7 @@
 - `evaluate` removed from CLI binary — Claude Code skill only
 
 ### Removed
+
 - `claude_api_key` and `github_token` from `config.yaml` (token auto-fetched)
 - `remove` command (replaced by scan auto-prune)
 - `evaluate` CLI command

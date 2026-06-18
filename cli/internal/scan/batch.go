@@ -9,72 +9,123 @@ import (
 	"github.com/guancioul/oss-ops/internal/model"
 )
 
-type ConfigEntry struct {
-	Labels []string
-}
-
 type IssueChange struct {
-	Idx   int // -1 = new
-	Issue model.Issue
+	Idx    int // -1 = new
+	Issue  model.Issue
+	Delete bool
 }
 
-func BuildBatch(allFetched []ghclient.Issue, tracked []model.Issue, byURL map[string]int) (batch []IssueChange, fetchedURLs map[string]bool) {
-	fetchedURLs = make(map[string]bool)
+func BuildBatch(
+	allFetched []ghclient.Issue,
+	tracked []model.Issue,
+	byURL map[string]int,
+	configuredRepos, configuredOrgs map[string]model.RepoConfig,
+	scannedRepos, scannedOrgs map[string]bool,
+	myGitHub string,
+) []IssueChange {
+	var batch []IssueChange
+	fetchedURLs := make(map[string]bool)
 	batchedURLs := make(map[string]bool)
-	updatedIdxs := make(map[int]bool)
+	handledIdxs := make(map[int]bool)
 
 	for _, iss := range allFetched {
 		fetchedURLs[iss.URL] = true
+		assignedToMe := myGitHub != "" && containsLogin(iss.Assignees, myGitHub)
 		if idx, ok := byURL[iss.URL]; ok {
-			if !updatedIdxs[idx] && tracked[idx].Status == "candidate" && len(iss.Assignees) > 0 {
+			if !handledIdxs[idx] && tracked[idx].Status == "candidate" && len(iss.Assignees) > 0 {
 				updated := tracked[idx]
-				updated.Status = "skip"
-				batch = append(batch, IssueChange{idx, updated})
-				updatedIdxs[idx] = true
-				fmt.Printf("  assigned  %s/%s #%d → skip\n", iss.Owner, iss.Repo, iss.Number)
+				if assignedToMe {
+					updated.Status = "in-progress"
+					fmt.Printf("  assigned  %s/%s #%d → in-progress\n", iss.Owner, iss.Repo, iss.Number)
+				} else {
+					updated.Status = "skip"
+					fmt.Printf("  assigned  %s/%s #%d → skip\n", iss.Owner, iss.Repo, iss.Number)
+				}
+				batch = append(batch, IssueChange{Idx: idx, Issue: updated})
+				handledIdxs[idx] = true
 			}
-		} else if !batchedURLs[iss.URL] && len(iss.Assignees) == 0 {
-			batch = append(batch, IssueChange{-1, model.Issue{
+		} else if !batchedURLs[iss.URL] && (len(iss.Assignees) == 0 || assignedToMe) {
+			status := "candidate"
+			if assignedToMe {
+				status = "in-progress"
+				fmt.Printf("  assigned  %s/%s #%d → in-progress\n", iss.Owner, iss.Repo, iss.Number)
+			}
+			batch = append(batch, IssueChange{Idx: -1, Issue: model.Issue{
 				Number:    iss.Number,
 				Repo:      iss.Owner + "/" + iss.Repo,
 				Title:     iss.Title,
 				URL:       iss.URL,
 				Labels:    iss.Labels,
-				Status:    "candidate",
+				Status:    status,
 				UpdatedAt: iss.UpdatedAt.Format("2006-01-02"),
 				FoundAt:   time.Now().Format("2006-01-02"),
 			}})
 			batchedURLs[iss.URL] = true
 		}
 	}
-	return
-}
 
-func AppendClosed(batch []IssueChange, tracked []model.Issue, fetchedURLs, scannedRepos, scannedOrgs map[string]bool) []IssueChange {
-	updatedIdxs := make(map[int]bool)
-	for _, c := range batch {
-		if c.Idx >= 0 {
-			updatedIdxs[c.Idx] = true
-		}
-	}
 	for i, iss := range tracked {
-		if iss.Status != "candidate" || updatedIdxs[i] || fetchedURLs[iss.URL] {
+		if iss.Status != "candidate" || handledIdxs[i] {
 			continue
 		}
 		org, _, _ := strings.Cut(iss.Repo, "/")
-		if !scannedRepos[iss.Repo] && !scannedOrgs[org] {
+		var cfgEntry model.RepoConfig
+		if e, ok := configuredRepos[iss.Repo]; ok {
+			cfgEntry = e
+		} else if e, ok := configuredOrgs[org]; ok {
+			cfgEntry = e
+		} else {
+			// repo not in config at all
+			batch = append(batch, IssueChange{Idx: i, Delete: true})
+			handledIdxs[i] = true
+			fmt.Printf("  pruned    %s #%d (repo not in config)\n", iss.Repo, iss.Number)
 			continue
 		}
-		updated := iss
-		updated.Status = "skip"
-		batch = append(batch, IssueChange{i, updated})
-		fmt.Printf("  closed    %s #%d → skip\n", iss.Repo, iss.Number)
+		switch {
+		case (scannedRepos[iss.Repo] || scannedOrgs[org]) && !fetchedURLs[iss.URL]:
+			batch = append(batch, IssueChange{Idx: i, Delete: true})
+			handledIdxs[i] = true
+			fmt.Printf("  removed   %s #%d (closed or label changed)\n", iss.Repo, iss.Number)
+		case len(cfgEntry.Labels) > 0 && len(iss.Labels) > 0 && !hasAnyLabel(iss.Labels, cfgEntry.Labels):
+			batch = append(batch, IssueChange{Idx: i, Delete: true})
+			handledIdxs[i] = true
+			fmt.Printf("  pruned    %s #%d (no matching config label)\n", iss.Repo, iss.Number)
+		}
 	}
+
 	return batch
 }
 
-func ApplyBatch(batch []IssueChange, tracked *[]model.Issue) (added, updated int) {
+func containsLogin(logins []string, target string) bool {
+	for _, l := range logins {
+		if l == target {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAnyLabel(issueLabels, configLabels []string) bool {
+	set := make(map[string]bool, len(configLabels))
+	for _, l := range configLabels {
+		set[l] = true
+	}
+	for _, l := range issueLabels {
+		if set[l] {
+			return true
+		}
+	}
+	return false
+}
+
+func ApplyBatch(batch []IssueChange, tracked *[]model.Issue) (added, updated, pruned int) {
+	deleteIdxs := make(map[int]bool)
 	for _, c := range batch {
+		if c.Delete {
+			deleteIdxs[c.Idx] = true
+			pruned++
+			continue
+		}
 		if c.Idx >= 0 {
 			(*tracked)[c.Idx] = c.Issue
 			updated++
@@ -83,22 +134,14 @@ func ApplyBatch(batch []IssueChange, tracked *[]model.Issue) (added, updated int
 			added++
 		}
 	}
-	return
-}
-
-func PruneUnconfigured(tracked *[]model.Issue, configuredRepos, configuredOrgs map[string]ConfigEntry) int {
-	pruned := 0
-	kept := (*tracked)[:0]
-	for _, iss := range *tracked {
-		org, _, _ := strings.Cut(iss.Repo, "/")
-		_, inRepos := configuredRepos[iss.Repo]
-		_, inOrgs := configuredOrgs[org]
-		if inRepos || inOrgs {
-			kept = append(kept, iss)
-		} else {
-			pruned++
+	if len(deleteIdxs) > 0 {
+		kept := (*tracked)[:0]
+		for i, iss := range *tracked {
+			if !deleteIdxs[i] {
+				kept = append(kept, iss)
+			}
 		}
+		*tracked = kept
 	}
-	*tracked = kept
-	return pruned
+	return
 }

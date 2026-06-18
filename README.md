@@ -12,12 +12,7 @@ Run these inside Claude Code (no build required):
 
 | Command | What it does |
 |---------|-------------|
-| `/oss-ops scan` | Scan configured repos / orgs for open issues |
-| `/oss-ops sync` | Sync your GitHub PR history into issues.yaml |
 | `/oss-ops evaluate` | AI evaluation of all `needs-evaluate` issues |
-| `/oss-ops track <pr-url>` | Link a PR to a tracked issue |
-| `/oss-ops explore <org>` | Discover opportunities across any GitHub org |
-| `/oss-ops dashboard` | How to open the TUI |
 
 ### CLI
 
@@ -34,7 +29,6 @@ Then run directly:
 ./oss-ops scan                                # scan repos for issues
 ./oss-ops sync                                # sync your GitHub PR history
 ./oss-ops dashboard                           # open TUI
-./oss-ops track <pr-url> --issue <issue-url>  # link a PR to a specific issue
 ```
 
 To install to PATH:
