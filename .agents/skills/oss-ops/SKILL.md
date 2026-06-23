@@ -3,7 +3,7 @@ name: oss-ops
 description: Discover, score, and track open source contribution opportunities
 arguments: mode
 user-invocable: true
-argument-hint: "[scan | sync | evaluate | track <pr-url> [--issue <url>] | explore <org>]"
+argument-hint: "[scan | sync | evaluate | explore <org>]"
 license: MIT
 ---
 
@@ -34,7 +34,6 @@ cd $PROJECT_ROOT/cli && go build -o oss-ops .
 | `scan` | Run scan |
 | `sync` | Run sync |
 | `evaluate` | Evaluate all needs-evaluate issues |
-| `track <pr-url> [--issue <url>]` | Run track |
 | `dashboard` | Print TUI instructions |
 | `explore <org>` | Discover contribution opportunities across a GitHub org |
 
@@ -50,7 +49,6 @@ oss-ops — Open Source Contribution Tracker
   /oss-ops scan                              → Scan repos / orgs for open issues
   /oss-ops sync                              → Sync your GitHub PR history into issues.json
   /oss-ops evaluate                          → Evaluate all needs-evaluate issues with AI
-  /oss-ops track <pr-url> --issue <url>      → Link a PR to a tracked issue
   /oss-ops dashboard                         → How to open the TUI
   /oss-ops explore <org>                     → Discover contribution opportunities in a GitHub org
 
@@ -152,16 +150,6 @@ Do NOT run the binary. Evaluate directly using your own intelligence.
 
 6. Write the updated issues.yaml back to disk.
 7. Print a summary table of all evaluated issues with verdict and report path.
-
----
-
-## track <pr-url> [--issue <url>]
-
-```bash
-GITHUB_TOKEN=$(gh auth token) $PROJECT_ROOT/oss-ops track <pr-url> --issue <issue-url> --config $PROJECT_ROOT/config.yaml
-```
-
-`--issue` is required — the binary's interactive prompt doesn't work inside Claude. If the user omitted it, ask for the issue URL before running.
 
 ---
 
