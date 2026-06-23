@@ -21,6 +21,7 @@ var syncCmd = &cobra.Command{
 		client := ghclient.New(token)
 		ctx := context.Background()
 
+		// Get Github username from config
 		username := viper.GetString("profile.github")
 		if username == "" {
 			u, err := client.GetAuthenticatedUser(ctx)
@@ -31,11 +32,12 @@ var syncCmd = &cobra.Command{
 		}
 		fmt.Printf("Syncing issues for %s...\n\n", username)
 
-		var repos []repoConfig
+		var repos []model.RepoConfig
 		if err := viper.UnmarshalKey("repos", &repos); err != nil {
 			return err
 		}
 
+		// Load existing tracked issues and build lookup maps
 		tracked := data.LoadIssues(dataDir)
 		byURL := make(map[string]int)
 		byRepoNum := make(map[string]int)

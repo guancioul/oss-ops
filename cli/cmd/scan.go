@@ -10,15 +10,9 @@ import (
 
 	"github.com/guancioul/oss-ops/internal/data"
 	ghclient "github.com/guancioul/oss-ops/internal/github"
+	"github.com/guancioul/oss-ops/internal/model"
 	"github.com/guancioul/oss-ops/internal/scan"
 )
-
-type repoConfig struct {
-	Owner  string   `mapstructure:"owner"`
-	Repo   string   `mapstructure:"repo"`
-	Repos  []string `mapstructure:"repos"`
-	Labels []string `mapstructure:"labels"`
-}
 
 var scanCmd = &cobra.Command{
 	Use:   "scan",
@@ -27,7 +21,7 @@ var scanCmd = &cobra.Command{
 		token := viper.GetString("github_token")
 		client := ghclient.New(token)
 
-		var repos []repoConfig
+		var repos []model.RepoConfig
 		if err := viper.UnmarshalKey("repos", &repos); err != nil || len(repos) == 0 {
 			fmt.Println("No repos configured. Add repos to config.yaml")
 			return nil
@@ -47,47 +41,39 @@ var scanCmd = &cobra.Command{
 		ctx := context.Background()
 		allFetched, scannedRepos, scannedOrgs := fetchAll(ctx, client, configuredRepos, configuredOrgs)
 
-		// Step 4: build batch
-		batch, fetchedURLs := scan.BuildBatch(allFetched, tracked, byURL)
-		batch = scan.AppendClosed(batch, tracked, fetchedURLs, scannedRepos, scannedOrgs)
-
-		// Step 5: apply batch
-		added, updated := scan.ApplyBatch(batch, &tracked)
-
-		// Prune repos no longer in config
-		pruned := scan.PruneUnconfigured(&tracked, configuredRepos, configuredOrgs)
-		if pruned > 0 {
-			fmt.Printf("Pruned %d issues from repos no longer in config.\n", pruned)
-		}
+		// Step 4: build + apply batch
+		myGitHub := viper.GetString("profile.github")
+		batch := scan.BuildBatch(allFetched, tracked, byURL, configuredRepos, configuredOrgs, scannedRepos, scannedOrgs, myGitHub)
+		added, updated, pruned := scan.ApplyBatch(batch, &tracked)
 
 		if err := data.SaveIssues(dataDir, tracked); err != nil {
 			return err
 		}
-		fmt.Printf("\nAdded: %d  Updated: %d  Total: %d\n", added, updated, len(tracked))
+		fmt.Printf("\nAdded: %d  Updated: %d  Pruned: %d  Total: %d\n", added, updated, pruned, len(tracked))
 		return nil
 	},
 }
 
-func buildConfigMaps(repos []repoConfig) (configuredRepos, configuredOrgs map[string]scan.ConfigEntry) {
-	configuredRepos = make(map[string]scan.ConfigEntry)
-	configuredOrgs = make(map[string]scan.ConfigEntry)
+func buildConfigMaps(repos []model.RepoConfig) (configuredRepos, configuredOrgs map[string]model.RepoConfig) {
+	configuredRepos = make(map[string]model.RepoConfig)
+	configuredOrgs = make(map[string]model.RepoConfig)
 	for _, r := range repos {
 		targets := r.Repos
 		if len(targets) == 0 && r.Repo != "" {
 			targets = []string{r.Repo}
 		}
 		if len(targets) == 0 {
-			configuredOrgs[r.Owner] = scan.ConfigEntry{Labels: r.Labels}
+			configuredOrgs[r.Owner] = r
 		} else {
 			for _, rn := range targets {
-				configuredRepos[r.Owner+"/"+rn] = scan.ConfigEntry{Labels: r.Labels}
+				configuredRepos[r.Owner+"/"+rn] = r
 			}
 		}
 	}
 	return
 }
 
-func fetchAll(ctx context.Context, client *ghclient.Client, configuredRepos, configuredOrgs map[string]scan.ConfigEntry) (
+func fetchAll(ctx context.Context, client *ghclient.Client, configuredRepos, configuredOrgs map[string]model.RepoConfig) (
 	allFetched []ghclient.Issue,
 	scannedRepos map[string]bool,
 	scannedOrgs map[string]bool,
