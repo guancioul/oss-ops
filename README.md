@@ -12,11 +12,17 @@ Run these inside Claude Code (no build required):
 
 | Command | What it does |
 |---------|-------------|
-| `/oss-ops scan` | Scan configured repos / orgs for open issues |
 | `/oss-ops sync` | Sync your GitHub PR history into issues.yaml |
+| `/oss-ops scan` | Scan configured repos / orgs for open issues |
 | `/oss-ops evaluate` | AI evaluation of all `needs-evaluate` issues |
 | `/oss-ops explore <org>` | Discover opportunities across any GitHub org |
 | `/oss-ops dashboard` | How to open the TUI |
+
+> **Run `sync` before `scan`.** `scan` only sees `open` issues and prunes any
+> `candidate` whose URL it didn't see this run. If you merged a PR and the issue is
+> still `candidate` (i.e. you haven't synced yet), `scan` will delete it instead of
+> recognizing it as merged. `sync` updates its status to `merged` first, which makes
+> `scan` skip it entirely.
 
 ### CLI
 
@@ -30,8 +36,8 @@ Then run directly:
 
 ```bash
 ./oss-ops doctor                              # check config + connectivity
-./oss-ops scan                                # scan repos for issues
 ./oss-ops sync                                # sync your GitHub PR history
+./oss-ops scan                                # scan repos for issues
 ./oss-ops dashboard                           # open TUI
 ```
 

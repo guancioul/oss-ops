@@ -48,8 +48,8 @@ Follow **SOLID principles** when implementing new features regardless.
 
 ```bash
 oss-ops doctor              # check config + connectivity
+oss-ops sync                # sync your GitHub PR history into issues.yaml — run before scan
 oss-ops scan                # discover issues from configured repos
-oss-ops sync                # sync your GitHub PR history into issues.yaml
 oss-ops dashboard           # TUI browser
 ```
 

@@ -31,8 +31,8 @@ cd $PROJECT_ROOT/cli && go build -o oss-ops .
 | Input | Action |
 |-------|--------|
 | (empty) | Show menu |
-| `scan` | Run scan |
 | `sync` | Run sync |
+| `scan` | Run scan |
 | `evaluate` | Evaluate all needs-evaluate issues |
 | `dashboard` | Print TUI instructions |
 | `explore <org>` | Discover contribution opportunities across a GitHub org |
@@ -46,24 +46,14 @@ Print:
 ```text
 oss-ops — Open Source Contribution Tracker
 
-  /oss-ops scan                              → Scan repos / orgs for open issues
   /oss-ops sync                              → Sync your GitHub PR history into issues.json
+  /oss-ops scan                              → Scan repos / orgs for open issues
   /oss-ops evaluate                          → Evaluate all needs-evaluate issues with AI
   /oss-ops dashboard                         → How to open the TUI
   /oss-ops explore <org>                     → Discover contribution opportunities in a GitHub org
 
-Config: edit config.yaml to set repos, labels, priority, focus_areas
+Config: edit config.yaml to set repos and labels
 ```
-
----
-
-## scan
-
-```bash
-GITHUB_TOKEN=$(gh auth token) $PROJECT_ROOT/oss-ops scan --config $PROJECT_ROOT/config.yaml
-```
-
-Show the full output. Summarise: how many issues added and which repos were scanned.
 
 ---
 
@@ -78,9 +68,24 @@ Searches all public PRs authored by the authenticated user. For each PR:
 - If it references a tracked issue via closing keyword (Fixes/Closes/Resolves #N) → updates that issue's status
 - Otherwise → adds the PR itself as a new record
 
-Status mapping: PR open → `in-progress`, PR merged → `merged`, PR closed → `skip`.
+Status mapping: PR open → `in-progress`, PR merged → `merged`, PR closed (not merged) → `rejected`.
 
 Show the full output and summarise: how many updated vs added.
+
+---
+
+## scan
+
+```bash
+GITHUB_TOKEN=$(gh auth token) $PROJECT_ROOT/oss-ops scan --config $PROJECT_ROOT/config.yaml
+```
+
+**Always run `sync` first.** `scan` only fetches `open` issues and prunes any
+`candidate` it doesn't see in this run — if a PR was merged and the issue is still
+`candidate` (not yet synced to `merged`), `scan` will delete it instead of recognizing
+it as merged.
+
+Show the full output. Summarise: how many issues added and which repos were scanned.
 
 ---
 
