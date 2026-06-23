@@ -3,7 +3,7 @@ name: oss-ops
 description: Discover, score, and track open source contribution opportunities
 arguments: mode
 user-invocable: true
-argument-hint: "[scan | sync | evaluate | track <pr-url> [--issue <url>] | explore <org>]"
+argument-hint: "[scan | sync | evaluate | explore <org>]"
 license: MIT
 ---
 
@@ -31,10 +31,9 @@ cd $PROJECT_ROOT/cli && go build -o oss-ops .
 | Input | Action |
 |-------|--------|
 | (empty) | Show menu |
-| `scan` | Run scan |
 | `sync` | Run sync |
+| `scan` | Run scan |
 | `evaluate` | Evaluate all needs-evaluate issues |
-| `track <pr-url> [--issue <url>]` | Run track |
 | `dashboard` | Print TUI instructions |
 | `explore <org>` | Discover contribution opportunities across a GitHub org |
 
@@ -47,25 +46,14 @@ Print:
 ```text
 oss-ops — Open Source Contribution Tracker
 
-  /oss-ops scan                              → Scan repos / orgs for open issues
   /oss-ops sync                              → Sync your GitHub PR history into issues.json
+  /oss-ops scan                              → Scan repos / orgs for open issues
   /oss-ops evaluate                          → Evaluate all needs-evaluate issues with AI
-  /oss-ops track <pr-url> --issue <url>      → Link a PR to a tracked issue
   /oss-ops dashboard                         → How to open the TUI
   /oss-ops explore <org>                     → Discover contribution opportunities in a GitHub org
 
-Config: edit config.yaml to set repos, labels, priority, focus_areas
+Config: edit config.yaml to set repos and labels
 ```
-
----
-
-## scan
-
-```bash
-GITHUB_TOKEN=$(gh auth token) $PROJECT_ROOT/oss-ops scan --config $PROJECT_ROOT/config.yaml
-```
-
-Show the full output. Summarise: how many issues added and which repos were scanned.
 
 ---
 
@@ -80,9 +68,24 @@ Searches all public PRs authored by the authenticated user. For each PR:
 - If it references a tracked issue via closing keyword (Fixes/Closes/Resolves #N) → updates that issue's status
 - Otherwise → adds the PR itself as a new record
 
-Status mapping: PR open → `in-progress`, PR merged → `merged`, PR closed → `skip`.
+Status mapping: PR open → `in-progress`, PR merged → `merged`, PR closed (not merged) → `rejected`.
 
 Show the full output and summarise: how many updated vs added.
+
+---
+
+## scan
+
+```bash
+GITHUB_TOKEN=$(gh auth token) $PROJECT_ROOT/oss-ops scan --config $PROJECT_ROOT/config.yaml
+```
+
+**Always run `sync` first.** `scan` only fetches `open` issues and prunes any
+`candidate` it doesn't see in this run — if a PR was merged and the issue is still
+`candidate` (not yet synced to `merged`), `scan` will delete it instead of recognizing
+it as merged.
+
+Show the full output. Summarise: how many issues added and which repos were scanned.
 
 ---
 
@@ -152,16 +155,6 @@ Do NOT run the binary. Evaluate directly using your own intelligence.
 
 6. Write the updated issues.yaml back to disk.
 7. Print a summary table of all evaluated issues with verdict and report path.
-
----
-
-## track <pr-url> [--issue <url>]
-
-```bash
-GITHUB_TOKEN=$(gh auth token) $PROJECT_ROOT/oss-ops track <pr-url> --issue <issue-url> --config $PROJECT_ROOT/config.yaml
-```
-
-`--issue` is required — the binary's interactive prompt doesn't work inside Claude. If the user omitted it, ask for the issue URL before running.
 
 ---
 

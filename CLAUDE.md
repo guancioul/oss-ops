@@ -8,11 +8,10 @@ Scans GitHub repos for open issues, scores them with a rule-based scorer, and tr
 
 ## Architecture
 
-Three-layer architecture. Follow **SOLID principles** when implementing new features.
+Current state — `cmd` calls into `scan`, `data`, and `github` directly:
 
 ```text
-cmd/              ← CLI boundary only: parse flags, print output, nothing else
-internal/app/     ← orchestration: coordinates layers below, one file per command
+cmd/              ← CLI boundary: parse flags, call internal packages, print output
 internal/
   model/          ← domain types (no dependencies on other internal packages)
   scan/           ← batch logic (pure, no I/O)
@@ -24,10 +23,14 @@ internal/
 
 Import rules:
 
-- `cmd` → `app`, `model` only (never imports `scan`, `data`, `github` directly)
-- `app` → `model`, `scan`, `data`, `github` (never imports `cmd`, `ui`)
+- `cmd` → `model`, `scan`, `data`, `github`, `ui`, `theme`
 - `scan/data/github` → `model` only (never import each other)
-- `ui` → `model`, `data`, `theme` (never imports `app`, `cmd`)
+- `ui` → `model`, `data`, `theme` (never imports `cmd`)
+
+`internal/app/` and `internal/port/` (an orchestration layer behind interfaces, so
+`cmd` stops importing infrastructure directly) are a planned refactor, not yet built —
+see [proposals/001-architecture-refactor.md](proposals/001-architecture-refactor.md).
+Follow **SOLID principles** when implementing new features regardless.
 
 ## Main Files
 
@@ -35,7 +38,6 @@ Import rules:
 | --- | --- |
 | `config.yaml` | GitHub token, repos, profile |
 | `cli/` | Go source (Cobra CLI + Bubble Tea TUI) |
-| `cli/internal/app/` | Orchestration layer (use cases) |
 | `cli/internal/github/client.go` | GitHub API client |
 | `cli/internal/data/issues.go` | issues.yaml read/write |
 | `cli/internal/model/` | Domain types |
@@ -46,9 +48,13 @@ Import rules:
 
 ```bash
 oss-ops doctor              # check config + connectivity
+oss-ops sync                # sync your GitHub PR history into issues.yaml — run before scan
 oss-ops scan                # discover issues from configured repos
 oss-ops dashboard           # TUI browser
 ```
+
+`evaluate` and `explore` are not binary subcommands — they're handled directly by
+Claude per the instructions in `.agents/skills/oss-ops/SKILL.md`.
 
 ## Issue Statuses
 
@@ -78,5 +84,6 @@ Go + [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lipgloss](https
 
 ## Skills
 
-- `.agents/skills/oss-ops/SKILL.md` — shared skill definition
+- `.agents/skills/oss-ops/SKILL.md` — shared skill definition (invoked as `/oss-ops`)
+- `.claude/skills/oss-ops/SKILL.md` — symlink to the above
 - `.qwen/skills/oss-ops/SKILL.md` — symlink to the above

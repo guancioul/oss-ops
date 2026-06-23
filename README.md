@@ -12,7 +12,17 @@ Run these inside Claude Code (no build required):
 
 | Command | What it does |
 |---------|-------------|
+| `/oss-ops sync` | Sync your GitHub PR history into issues.yaml |
+| `/oss-ops scan` | Scan configured repos / orgs for open issues |
 | `/oss-ops evaluate` | AI evaluation of all `needs-evaluate` issues |
+| `/oss-ops explore <org>` | Discover opportunities across any GitHub org |
+| `/oss-ops dashboard` | How to open the TUI |
+
+> **Run `sync` before `scan`.** `scan` only sees `open` issues and prunes any
+> `candidate` whose URL it didn't see this run. If you merged a PR and the issue is
+> still `candidate` (i.e. you haven't synced yet), `scan` will delete it instead of
+> recognizing it as merged. `sync` updates its status to `merged` first, which makes
+> `scan` skip it entirely.
 
 ### CLI
 
@@ -26,8 +36,8 @@ Then run directly:
 
 ```bash
 ./oss-ops doctor                              # check config + connectivity
-./oss-ops scan                                # scan repos for issues
 ./oss-ops sync                                # sync your GitHub PR history
+./oss-ops scan                                # scan repos for issues
 ./oss-ops dashboard                           # open TUI
 ```
 
@@ -41,23 +51,30 @@ go build -o /usr/local/bin/oss-ops ./cli
 
 ```bash
 cp config.yaml.example config.yaml
-# Fill in: github_token, claude_api_key, repos, profile
+# Fill in: repos, profile
 ```
 
 GitHub token is auto-fetched via `gh auth token` — no need to set it manually.
+No Claude API key is needed either: `evaluate` and `explore` run as Claude Code
+skill instructions, not API calls.
 
 ```yaml
 profile:
+  github: ""           # your GitHub username — used to fetch PR history for evaluate/sync
   goal: "Contribute to cloud native and distributed systems projects."
   skills: [Go, Java, Kubernetes, Kafka, Rust]
+  custom_prompt: ""    # extra constraint appended during AI evaluation
 
 repos:
   # Specific repo
   - owner: strimzi
     repo: strimzi-kafka-operator
     labels: [help-wanted, good-start]
-    priority: high                   # high / medium / low  (+20 / +10 / +5)
-    focus_areas: [kafka, operator]
+
+  # Multiple repos under one owner
+  - owner: strimzi
+    repos: [strimzi-kafka-operator, strimzi-kafka-bridge]
+    labels: [help-wanted]
 
   # Entire org — scans all repos in the org via GitHub Search API
   - owner: open-telemetry
@@ -91,27 +108,19 @@ It will:
 
 ## Scoring (0–100)
 
-Accessibility labels (`good-first issue`, `help-wanted`) take the **max**, not sum — having both doesn't stack.
-
-| Signal | Points |
-|--------|--------|
-| Base | 50 |
-| Repo priority: high / medium / low | +20 / +10 / +5 |
-| Label: good-first issue *(best of accessibility group)* | +15 |
-| Label: help-wanted *(best of accessibility group)* | +10 |
-| Label: needs-proposal | +10 |
-| Label: blocked | −20 |
-| Updated within 30 days | +10 |
-| Not updated in 180+ days | −15 |
-| Title matches a `focus_areas` keyword | +10 |
-| Body matches a `focus_areas` keyword | +5 |
-| Comments > 10 | −10 |
-
-Issues with an assignee are filtered out at scan time and never appear.
+`scan` does not score issues — it just tracks them as `candidate` and filters out
+anything already assigned to someone else. Scoring happens during `/oss-ops evaluate`:
+Claude reads each candidate's content plus your `profile` and merged PR history, then
+assigns a 0–100 suitability score, a `yes`/`maybe`/`no` verdict, a time estimate, and a
+written approach (see [SKILL.md](.agents/skills/oss-ops/SKILL.md) for the exact steps).
 
 ## Issue Pipeline
 
-`candidate` → `evaluating` → `in-progress` → `merged` / `skip`
+```text
+candidate → needs-evaluate → evaluated → in-progress → merged
+                                                       → rejected
+candidate → skip
+```
 
 ## Tech
 

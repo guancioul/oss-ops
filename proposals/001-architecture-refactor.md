@@ -32,14 +32,17 @@ Draft — open for discussion
 2. **No interface boundaries.** `cmd/scan.go` imports `data`, `github`, and `scan`
    directly. There is no way to test the command logic without real I/O.
 
-3. **Duplicate / overlapping types.** `repoConfig` (cmd) and `ConfigEntry` (scan) both
-   represent "a configured repo with labels" — two structs for the same concept.
+3. ~~**Duplicate / overlapping types.**~~ Resolved — both `cmd` and `scan` now use
+   `model.RepoConfig` (2026-06-23).
 
-4. **Dead code.** `scorer/scorer.go` is not imported by anything. `ai/evaluator.go`
-   has no associated command.
+4. ~~**Dead code.** `scorer/scorer.go` is not imported by anything. `ai/evaluator.go`
+   has no associated command.~~ Resolved — both removed (2026-06-23).
 
-5. **Stale statuses.** `NormalizeStatus` and pipeline tabs reference `needs-evaluate`,
-   `evaluated`, `rejected` — states that can only be set by the removed commands.
+5. ~~**Stale statuses.**~~ Not actually stale: `needs-evaluate` and `evaluated` are
+   set/read by the `/oss-ops evaluate` skill workflow (dashboard sets
+   `needs-evaluate`, evaluate sets `evaluated`), and `rejected` is set by `sync`
+   (see `cmd/sync.go`). All statuses in `NormalizeStatus` and the pipeline tabs are
+   reachable from current code.
 
 ---
 
@@ -49,10 +52,10 @@ Draft — open for discussion
 | --- | --- |
 | Remove `track` command | Done |
 | Keep `sync` command | Decided |
-| Remove `ai/evaluator.go` | Done |
-| Remove `scorer/scorer.go` | Done |
+| Remove `ai/evaluator.go` | Done (2026-06-23) |
+| Remove `scorer/scorer.go` | Done (2026-06-23) |
 | Keep `model/pr.go` | Decided |
-| Centralize domain types into `internal/model` | In progress (`RepoConfig` added) |
+| Centralize domain types into `internal/model` | Done — `RepoConfig` is the only shared config type and both `cmd` and `scan` use it |
 | Follow SOLID when implementing new features | Decided (documented in CLAUDE.md) |
 
 ---
