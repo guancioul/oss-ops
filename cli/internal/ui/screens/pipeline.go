@@ -813,7 +813,7 @@ func (m PipelineModel) renderIssueLine(iss model.Issue, selected bool) string {
 	repoStyle := lipgloss.NewStyle().Foreground(m.theme.Sky).Width(repoW)
 
 	// Title (truncate)
-	titleText := truncateRunes(iss.Title, titleW)
+	titleText := truncateRunes(fmt.Sprintf("#%d %s", iss.Number, iss.Title), titleW)
 	titleStyle := lipgloss.NewStyle().Foreground(m.theme.Text).Width(titleW)
 
 	// Status with color
