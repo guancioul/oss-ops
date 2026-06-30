@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/guancioul/oss-ops/compare/v0.1.0...v0.2.0) (2026-06-30)
+
+
+### Features
+
+* domain layer, batch scan, sync status preservation ([fcd814d](https://github.com/guancioul/oss-ops/commit/fcd814d845b59e79e87b7c2990d160de3e889c42))
+* drop track command, add markdownlint CI ([#17](https://github.com/guancioul/oss-ops/issues/17)) ([590e205](https://github.com/guancioul/oss-ops/commit/590e20589a4471ce6c4fe73139f986c0d9a71e3a))
+
 ## 0.1.0 (2026-05-27)
 
 
