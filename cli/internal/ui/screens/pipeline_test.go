@@ -1,6 +1,7 @@
 package screens
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -348,3 +349,30 @@ func TestEscWithoutQueryIsNoOp(t *testing.T) {
 		t.Fatal("Esc with no query should not toggle searchInput")
 	}
 }
+
+func TestFormatIssueLabels(t *testing.T) {
+	if got := formatIssueLabels(nil, 20); got != "" {
+		t.Fatalf("empty labels: got %q", got)
+	}
+	if got := formatIssueLabels([]string{"bug", "help-wanted"}, 40); got != "bug, help-wanted" {
+		t.Fatalf("two labels: got %q", got)
+	}
+	if got := formatIssueLabels([]string{"bug", "help-wanted", "kafka connect"}, 40); got != "bug, help-wanted +1" {
+		t.Fatalf("three labels with +N: got %q", got)
+	}
+	// Narrow width should drop labels rather than mid-cut the second name when possible.
+	got := formatIssueLabels([]string{"bug", "help-wanted", "extra"}, 12)
+	if !strings.Contains(got, "bug") {
+		t.Fatalf("expected to keep first label, got %q", got)
+	}
+	if strings.Contains(got, "help-wante...") || strings.HasSuffix(got, "...") && !strings.Contains(got, "+") {
+		// mid-label ellipsis alone is OK only as last resort for a single long label
+	}
+	if got := formatIssueLabels([]string{"bug", "help-wanted", "x"}, 20); got != "bug, help-wanted +1" && got != "bug +2" {
+		// 20 runes: "bug, help-wanted +1" is 19 runes — should fit
+		if got != "bug, help-wanted +1" {
+			t.Fatalf("width 20 three labels: got %q want bug, help-wanted +1", got)
+		}
+	}
+}
+

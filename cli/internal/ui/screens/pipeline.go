@@ -822,15 +822,9 @@ func (m PipelineModel) renderIssueLine(iss model.Issue, selected bool) string {
 	statusStyle := lipgloss.NewStyle().Foreground(statusColor).Width(statusW)
 	statusText := statusStyle.Render(statusLabel(norm))
 
-	// Labels (first 2)
-	labelsText := ""
-	if len(iss.Labels) > 0 {
-		shown := iss.Labels
-		if len(shown) > 2 {
-			shown = shown[:2]
-		}
-		labelsText = strings.Join(shown, ",")
-	}
+	// Labels: up to 2 full names, "+N" for overflow; join with ", " to match detail pane.
+	// Prefer whole labels over mid-label hard truncation within the column width.
+	labelsText := formatIssueLabels(iss.Labels, labelsW)
 	labelsStyle := lipgloss.NewStyle().Foreground(m.theme.Yellow).Width(labelsW)
 
 	// Time estimate
@@ -842,7 +836,7 @@ func (m PipelineModel) renderIssueLine(iss model.Issue, selected bool) string {
 		repoStyle.Render(repoText),
 		titleStyle.Render(titleText),
 		statusText,
-		labelsStyle.Render(truncateRunes(labelsText, labelsW)),
+		labelsStyle.Render(labelsText),
 		timeEstStyle.Render(timeEstText),
 	)
 
@@ -1033,6 +1027,40 @@ func (m PipelineModel) countByNormStatus(status string) int {
 	return count
 }
 
+
+// formatIssueLabels joins labels with ", " (matching the detail pane), keeps whole
+// label names, and appends " +N" when labels are omitted to fit maxWidth runes.
+func formatIssueLabels(labels []string, maxWidth int) string {
+	if len(labels) == 0 || maxWidth <= 0 {
+		return ""
+	}
+	const maxShow = 2
+	shown := labels
+	extra := 0
+	if len(shown) > maxShow {
+		extra = len(shown) - maxShow
+		shown = shown[:maxShow]
+	}
+	// Shrink shown set until text (+ optional +N) fits without mid-label cuts.
+	for len(shown) > 0 {
+		text := strings.Join(shown, ", ")
+		suffix := ""
+		if extra > 0 {
+			suffix = fmt.Sprintf(" +%d", extra)
+		}
+		if len([]rune(text+suffix)) <= maxWidth {
+			return text + suffix
+		}
+		// Drop last shown label into the overflow count.
+		extra++
+		shown = shown[:len(shown)-1]
+	}
+	// Even one label does not fit: show as many runes as possible of the first label.
+	if len(labels) == 0 {
+		return ""
+	}
+	return truncateRunes(labels[0], maxWidth)
+}
 // truncateRunes truncates a string to at most maxRunes runes, appending "..." if truncated.
 func truncateRunes(s string, maxRunes int) string {
 	runes := []rune(s)
